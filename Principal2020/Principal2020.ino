@@ -1,6 +1,7 @@
 //Bibliotecas
-#include <RTClib.h>
-
+#include <RTClib.h> //RTC
+#include <Adafruit_GFX.h> //Display OLED
+#include <Adafruit_SSD1306.h>//Display OLED
 //Variaveis rpm
 #define pinINT   27
 volatile int conta_RPM = 0;
@@ -14,6 +15,11 @@ float minutos = 0;
 //Variaveis tempo
 float tempo  = 0;
 RTC_DS1307 rtc;
+
+//Objeto display
+Adafruit_SSD1306 display(128, 64);
+#include <Fonts/FreeMonoBold18pt7b.h>
+#include <Fonts/FreeMono9pt7b.h>
 
 //Funcao interrupcao
 void IRAM_ATTR ContaInterrupt() {
@@ -30,6 +36,15 @@ void setup() {
     while (1);
   }
   //rtc.adjust(DateTime(2019, 10, 26, 15, 22, 0));  // (Ano,mês,dia,hora,minuto,segundo)
+
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+  display.setTextColor(WHITE);
+  display.setRotation(0);
+  display.setTextWrap(true);
+  display.dim(0);
+  display.setFont(&FreeMono9pt7b);
+  display.setTextSize(0);
   
   Serial.print("RPM");
   Serial.print("  ");
@@ -54,4 +69,15 @@ void loop() {
   Serial.print(tempo);
   Serial.println("  ");
   delayMicroseconds(1000000);
+
+  char stringrpm[10];
+  dtostrf(RPM, 6, 0, stringrpm);
+  display.clearDisplay();
+  display.setFont(&FreeMonoBold18pt7b);
+  display.setCursor(0, 25);
+  display.println("RPM:");
+  display.setCursor(0, 60);
+  display.print(stringrpm);
+  display.println("[RPM]");
+  display.display();
 }
