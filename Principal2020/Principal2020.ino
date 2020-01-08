@@ -1,8 +1,10 @@
 //Bibliotecas
 #include <RTClib.h> //RTC
-#include <Adafruit_GFX.h> //Display OLED
-#include <Adafruit_SSD1306.h> //Display OLED
+#include <Adafruit_GFX.h> //OLED
+#include <Adafruit_SSD1306.h> //OLED
 #include <Wire.h> //MPU
+#include <Adafruit_HMC5883_U.h> //HMC
+#include <MapFloat.h> //HMC
 
 //Variaveis rpm
 #define pinINT   27
@@ -30,6 +32,10 @@ int minVal=265;
 int maxVal=402;
 float x, y, z;
 float pitch, roll, pitchprefiltro, rollprefiltro;
+
+//Variaveis mag
+Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
+float MagBow = 0;
 
 //Funcao interrupcao
 void IRAM_ATTR ContaInterrupt() {
@@ -61,6 +67,15 @@ void setup() {
   Wire.write(0x6B);
   Wire.write(0);
   Wire.endTransmission(true);
+
+  if(!mag.begin())
+  {
+    Serial.println("HMC5883 nao detectado");
+    display.setCursor(0,25);
+    display.println("HMC5883 nao detectado!");
+    display.display();
+    while(1);
+  }
   
   Serial.print("RPM");
   Serial.print("  ");
@@ -71,9 +86,11 @@ void setup() {
   Serial.print("THETA");
   Serial.print("  ");
   Serial.print("PHI");
+  Serial.print("  ");
+  Serial.print("MagBow");
   Serial.println("  ");
   
-  delayMicroseconds(1000);
+  delayMicroseconds(1000000);
 }
 
 void loop() {
@@ -120,6 +137,23 @@ void loop() {
   if(abs(pitchprefiltro) < 35) pitch = pitchprefiltro;
   if(abs(rollprefiltro) < 30) roll = rollprefiltro;
 
+  sensors_event_t event;
+  mag.getEvent(&event);
+  float heading = atan2(event.magnetic.y, event.magnetic.x);
+  float declinationAngle = 0.37;
+  heading += declinationAngle;
+  if(heading < 0)
+    heading += 2*PI;
+  if(heading > 2*PI)
+    heading -= 2*PI;
+  float headingDegrees = heading * 180/M_PI;
+  if(headingDegrees <= 264.00){
+    MagBow = mapFloat(headingDegrees,264.00, 0.00,0.00, 264.00);
+  }
+  if(headingDegrees > 264.00){
+    MagBow = mapFloat(headingDegrees,360.00 , 263.99, 264.01, 360.00);
+  }
+  
   Serial.print(RPM);
   Serial.print("  ");
   Serial.print(tempo);
@@ -129,6 +163,8 @@ void loop() {
   Serial.print(pitch);
   Serial.print("  ");
   Serial.print(roll);
+  Serial.print("  ");
+  Serial.print(MagBow);
   Serial.println("  ");
   
   delayMicroseconds(1000000);
