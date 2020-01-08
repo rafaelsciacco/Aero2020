@@ -5,6 +5,7 @@
 #include <Wire.h> //MPU
 #include <Adafruit_HMC5883_U.h> //HMC
 #include <MapFloat.h> //HMC
+#include <TinyGPS.h> //GPS
 
 //Variaveis rpm
 #define pinINT   27
@@ -37,6 +38,12 @@ float pitch, roll, pitchprefiltro, rollprefiltro;
 Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
 float MagBow = 0;
 
+//Variaveis gps
+#define RXD2 16
+#define TXD2 17
+TinyGPS gps1;
+float Altitude_soloLocal = 547.00;
+
 //Funcao interrupcao
 void IRAM_ATTR ContaInterrupt() {
   conta_RPM = conta_RPM + 1; //incrementa o contador de interrupções
@@ -44,6 +51,8 @@ void IRAM_ATTR ContaInterrupt() {
 
 void setup() {
   Serial.begin(115200);
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
+  
   pinMode(pinINT,INPUT_PULLUP);
   attachInterrupt(pinINT,ContaInterrupt, RISING);
   
@@ -88,6 +97,12 @@ void setup() {
   Serial.print("PHI");
   Serial.print("  ");
   Serial.print("MagBow");
+  Serial.print("  ");
+  Serial.print("XGPS");
+  Serial.print("  ");
+  Serial.print("YGPS");
+  Serial.print("  ");
+  Serial.print("ZGPS");
   Serial.println("  ");
   
   delayMicroseconds(1000000);
@@ -153,6 +168,18 @@ void loop() {
   if(headingDegrees > 264.00){
     MagBow = mapFloat(headingDegrees,360.00 , 263.99, 264.01, 360.00);
   }
+
+  bool recebido = false;
+  while (Serial2.available()) {
+    char cIn = Serial2.read();
+    recebido = (gps1.encode(cIn) || recebido);
+  }
+  float latitude, longitude;
+  unsigned long idadeInfo;
+  gps1.f_get_position(&latitude, &longitude, &idadeInfo);
+  float altitudeGPS;
+  float altitudeResult;
+  altitudeGPS = gps1.f_altitude();
   
   Serial.print(RPM);
   Serial.print("  ");
@@ -165,6 +192,18 @@ void loop() {
   Serial.print(roll);
   Serial.print("  ");
   Serial.print(MagBow);
+  if (latitude != TinyGPS::GPS_INVALID_F_ANGLE) {
+    Serial.print("  ");
+    Serial.print(latitude,6);
+  }
+  if (longitude != TinyGPS::GPS_INVALID_F_ANGLE) {
+    Serial.print("  ");
+    Serial.print(longitude,6);
+  }
+  if ((altitudeGPS != TinyGPS::GPS_INVALID_ALTITUDE) && (altitudeGPS != 1000000)) {
+    Serial.print("  ");
+    Serial.print(altitudeGPS);
+  }
   Serial.println("  ");
   
   delayMicroseconds(1000000);
