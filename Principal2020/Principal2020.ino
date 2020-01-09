@@ -129,6 +129,8 @@ void setup() {
   Serial.print("  ");
   Serial.print("Tempo");
   Serial.print("  ");
+  Serial.print("WOW");
+  Serial.print("  ");
   Serial.print("NZ");
   Serial.print("  ");
   Serial.print("THETA");
@@ -275,6 +277,8 @@ void loop() {
   Serial.print(RPM);
   Serial.print("  ");
   Serial.print(tempo);
+  Serial.print("  ");
+  Serial.print(WOW);
   Serial.print("  ");
   Serial.print(AcZ/16384.0);
   Serial.print("  ");
