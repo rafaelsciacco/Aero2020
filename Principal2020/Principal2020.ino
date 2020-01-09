@@ -47,6 +47,11 @@ bool WOW = 0;
 Adafruit_BMP085 bmp_1;
 Adafruit_BMP085 bmp_2;
 
+//Variaveis pots
+int Pot1 = 36;
+int Pot2 = 39;
+int Pot3 = 32;
+
 //Variaveis gps
 #define RXD2 16
 #define TXD2 17
@@ -115,6 +120,10 @@ void setup() {
     display.display();
     while(1){}
   }*/
+
+  pinMode(Pot1,INPUT);
+  pinMode(Pot2,INPUT);
+  pinMode(Pot3,INPUT);
   
   Serial.print("RPM");
   Serial.print("  ");
@@ -131,6 +140,12 @@ void setup() {
   Serial.print("HP");
   Serial.print("  ");
   Serial.print("VCAS");
+  Serial.print("  ");
+  Serial.print("ELEV");
+  Serial.print("  ");
+  Serial.print("AIL");
+  Serial.print("  ");
+  Serial.print("RUD");
   Serial.print("  ");
   Serial.print("XGPS");
   Serial.print("  ");
@@ -222,6 +237,29 @@ void loop() {
   double velocidademps = sqrt(calc);
   if (calc < 0) velocidademps = 0.00;
   */
+
+  int valuePot_Prof  = analogRead(Pot3); 
+  if(valuePot_Prof <= 2047){
+    valuePot_Prof  =  map(valuePot_Prof,0,2047,90,0);
+  }
+  else{
+    valuePot_Prof  =  map(valuePot_Prof,2048,4095,0,-90);
+  }
+  int valuePot_Aileron  = analogRead(Pot1);
+  if(valuePot_Aileron <= 2047){
+    valuePot_Aileron  =  map(valuePot_Aileron,0,2047,90,0);
+  }
+  else{
+    valuePot_Aileron  =  map(valuePot_Aileron,2048,4095,0,-90);
+  }
+  int valuePot_Leme  = analogRead(Pot2);
+  if(valuePot_Leme <= 2047){
+    valuePot_Leme  =  map(valuePot_Leme,0,2047,90,0);
+  }
+  else{
+    valuePot_Leme  =  map(valuePot_Leme,2048,4095,0,-90);
+  }
+  
   bool recebido = false;
   while (Serial2.available()) {
     char cIn = Serial2.read();
@@ -249,6 +287,13 @@ void loop() {
   Serial.print(HP);
   Serial.print("  ");
   Serial.print(velocidademps);
+  Serial.print("  ");
+  Serial.print(valuePot_Prof);
+  Serial.print("  ");
+  Serial.print(valuePot_Aileron);
+  Serial.print("  ");
+  Serial.print(valuePot_Leme);
+  
   if (latitude != TinyGPS::GPS_INVALID_F_ANGLE) {
     Serial.print("  ");
     Serial.print(latitude,6);
