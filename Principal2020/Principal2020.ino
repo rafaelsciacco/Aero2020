@@ -5,6 +5,7 @@
 #include <Wire.h> //MPU
 #include <Adafruit_HMC5883_U.h> //HMC
 #include <MapFloat.h> //HMC
+#include <Adafruit_BMP085.h> //BMP
 #include <TinyGPS.h> //GPS
 
 //Variaveis rpm
@@ -37,6 +38,14 @@ float pitch, roll, pitchprefiltro, rollprefiltro;
 //Variaveis mag
 Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
 float MagBow = 0;
+
+//Variaveis bmps
+int S0 = 0;
+int S1 = 2;
+float HP = 0, HPinicial = 1880, altitudeResult = 0, velocidademps = 0;
+bool WOW = 0;
+Adafruit_BMP085 bmp_1;
+Adafruit_BMP085 bmp_2;
 
 //Variaveis gps
 #define RXD2 16
@@ -85,6 +94,27 @@ void setup() {
     display.display();
     while(1);
   }
+
+  pinMode(S0,OUTPUT);
+  pinMode(S1,OUTPUT);
+ /* digitalWrite(S0,LOW);
+  digitalWrite(S1,LOW);
+  if(!bmp_1.begin() ){
+    Serial.println("Sensor BMP1 não detectado!");
+    display.setCursor(0,25);
+    display.println("Sensor BMP1 nao detectado!");
+    display.display();
+    while(1){}
+  } 
+  digitalWrite(S0,HIGH);
+  digitalWrite(S1,LOW); 
+  if(!bmp_2.begin() ){
+    Serial.println("Sensor BMP2 não detectado!");
+    display.setCursor(0,25);
+    display.println("Sensor BMP2 nao detectado!");
+    display.display();
+    while(1){}
+  }*/
   
   Serial.print("RPM");
   Serial.print("  ");
@@ -97,6 +127,10 @@ void setup() {
   Serial.print("PHI");
   Serial.print("  ");
   Serial.print("MagBow");
+  Serial.print("  ");
+  Serial.print("HP");
+  Serial.print("  ");
+  Serial.print("VCAS");
   Serial.print("  ");
   Serial.print("XGPS");
   Serial.print("  ");
@@ -169,6 +203,25 @@ void loop() {
     MagBow = mapFloat(headingDegrees,360.00 , 263.99, 264.01, 360.00);
   }
 
+  /*digitalWrite(S0,LOW);
+  digitalWrite(S1,LOW);
+  double p_Estatica = (bmp_1.readPressure() + 325);
+  digitalWrite(S0,HIGH);
+  digitalWrite(S1,LOW);
+  HP = bmp_2.readAltitude(101325)*3.28084;
+  altitudeResult = HP - HPinicial;
+  if(altitudeResult > 3){
+    WOW = 1;
+  }
+  if(altitudeResult < 3){
+    WOW = 0;
+  }
+  altitudeResult = 0;
+  double p_Total    = bmp_2.readPressure();
+  double calc       = ((2.*(p_Total - p_Estatica))/ 0.925925);
+  double velocidademps = sqrt(calc);
+  if (calc < 0) velocidademps = 0.00;
+  */
   bool recebido = false;
   while (Serial2.available()) {
     char cIn = Serial2.read();
@@ -192,6 +245,10 @@ void loop() {
   Serial.print(roll);
   Serial.print("  ");
   Serial.print(MagBow);
+  Serial.print("  ");
+  Serial.print(HP);
+  Serial.print("  ");
+  Serial.print(velocidademps);
   if (latitude != TinyGPS::GPS_INVALID_F_ANGLE) {
     Serial.print("  ");
     Serial.print(latitude,6);
