@@ -7,6 +7,9 @@
 #include <MapFloat.h> //HMC
 #include <Adafruit_BMP085.h> //BMP
 #include <TinyGPS.h> //GPS
+#include "FS.h" //SD
+#include "SD.h" //SD
+#include "SPI.h" //SD
 
 //Variaveis rpm
 #define pinINT   27
@@ -61,6 +64,164 @@ float Altitude_soloLocal = 547.00;
 //Funcao interrupcao
 void IRAM_ATTR ContaInterrupt() {
   conta_RPM = conta_RPM + 1; //incrementa o contador de interrupções
+}
+
+//Funcoes microSD
+void listDir(fs::FS &fs, const char * dirname, uint8_t levels){
+    Serial.printf("Listing directory: %s\n", dirname);
+
+    File root = fs.open(dirname);
+    if(!root){
+        Serial.println("Failed to open directory");
+        return;
+    }
+    if(!root.isDirectory()){
+        Serial.println("Not a directory");
+        return;
+    }
+
+    File file = root.openNextFile();
+    while(file){
+        if(file.isDirectory()){
+            Serial.print("  DIR : ");
+            Serial.println(file.name());
+            if(levels){
+                listDir(fs, file.name(), levels -1);
+            }
+        } else {
+            Serial.print("  FILE: ");
+            Serial.print(file.name());
+            Serial.print("  SIZE: ");
+            Serial.println(file.size());
+        }
+        file = root.openNextFile();
+    }
+}
+
+void createDir(fs::FS &fs, const char * path){
+    Serial.printf("Creating Dir: %s\n", path);
+    if(fs.mkdir(path)){
+        Serial.println("Dir created");
+    } else {
+        Serial.println("mkdir failed");
+    }
+}
+
+void removeDir(fs::FS &fs, const char * path){
+    Serial.printf("Removing Dir: %s\n", path);
+    if(fs.rmdir(path)){
+        Serial.println("Dir removed");
+    } else {
+        Serial.println("rmdir failed");
+    }
+}
+
+void readFile(fs::FS &fs, const char * path){
+    Serial.printf("Reading file: %s\n", path);
+
+    File file = fs.open(path);
+    if(!file){
+        Serial.println("Failed to open file for reading");
+        return;
+    }
+
+    Serial.print("Read from file: ");
+    while(file.available()){
+        Serial.write(file.read());
+    }
+    file.close();
+}
+
+void writeFile(fs::FS &fs, const char * path, const char * message){
+    Serial.printf("Writing file: %s\n", path);
+
+    File file = fs.open(path, FILE_WRITE);
+    if(!file){
+        Serial.println("Failed to open file for writing");
+        return;
+    }
+    if(file.print(message)){
+        Serial.println("File written");
+    } else {
+        Serial.println("Write failed");
+    }
+    file.close();
+}
+
+void appendFile(fs::FS &fs, const char * path, const char * message){
+    Serial.printf("Appending to file: %s\n", path);
+
+    File file = fs.open(path, FILE_APPEND);
+    if(!file){
+        Serial.println("Failed to open file for appending");
+        return;
+    }
+    if(file.print(message)){
+        Serial.println("Message appended");
+    } else {
+        Serial.println("Append failed");
+    }
+    file.close();
+}
+
+void renameFile(fs::FS &fs, const char * path1, const char * path2){
+    Serial.printf("Renaming file %s to %s\n", path1, path2);
+    if (fs.rename(path1, path2)) {
+        Serial.println("File renamed");
+    } else {
+        Serial.println("Rename failed");
+    }
+}
+
+void deleteFile(fs::FS &fs, const char * path){
+    Serial.printf("Deleting file: %s\n", path);
+    if(fs.remove(path)){
+        Serial.println("File deleted");
+    } else {
+        Serial.println("Delete failed");
+    }
+}
+
+void testFileIO(fs::FS &fs, const char * path){
+    File file = fs.open(path);
+    static uint8_t buf[512];
+    size_t len = 0;
+    uint32_t start = millis();
+    uint32_t end = start;
+    if(file){
+        len = file.size();
+        size_t flen = len;
+        start = millis();
+        while(len){
+            size_t toRead = len;
+            if(toRead > 512){
+                toRead = 512;
+            }
+            file.read(buf, toRead);
+            len -= toRead;
+        }
+        end = millis() - start;
+        Serial.printf("%u bytes read for %u ms\n", flen, end);
+        file.close();
+    } else {
+        Serial.println("Failed to open file for reading");
+    }
+
+
+    file = fs.open(path, FILE_WRITE);
+    if(!file){
+        Serial.println("Failed to open file for writing");
+        return;
+    }
+
+    size_t i;
+    start = millis();
+    for(i=0; i<2048; i++){
+        file.write(buf, 512);
+    }
+    end = millis() - start;
+    Serial.printf("%u bytes written for %u ms\n", 2048 * 512, end);
+    file.close();
 }
 
 void setup() {
@@ -124,37 +285,63 @@ void setup() {
   pinMode(Pot1,INPUT);
   pinMode(Pot2,INPUT);
   pinMode(Pot3,INPUT);
+
+  if(!SD.begin()){
+    Serial.println("Card Mount Failed");
+    display.setCursor(0,25);
+    display.println("FALHA AO MONTAR CARTAO");
+    display.display();
+    while(1){};
+    //return;
+  }
+  uint8_t cardType = SD.cardType();
+  if(cardType == CARD_NONE){
+    Serial.println("No SD card attached");
+    display.setCursor(0,25);
+    display.println("Cartao SD nao detectado!");
+    display.display();
+    while(1){};
+    //return;
+  }
   
-  Serial.print("RPM");
-  Serial.print("  ");
-  Serial.print("Tempo");
-  Serial.print("  ");
-  Serial.print("WOW");
-  Serial.print("  ");
-  Serial.print("NZ");
-  Serial.print("  ");
-  Serial.print("THETA");
-  Serial.print("  ");
-  Serial.print("PHI");
-  Serial.print("  ");
-  Serial.print("MagBow");
-  Serial.print("  ");
-  Serial.print("HP");
-  Serial.print("  ");
-  Serial.print("VCAS");
-  Serial.print("  ");
-  Serial.print("ELEV");
-  Serial.print("  ");
-  Serial.print("AIL");
-  Serial.print("  ");
-  Serial.print("RUD");
-  Serial.print("  ");
-  Serial.print("XGPS");
-  Serial.print("  ");
-  Serial.print("YGPS");
-  Serial.print("  ");
-  Serial.print("ZGPS");
-  Serial.println("  ");
+  listDir   (SD, "/", 2);    
+  writeFile (SD, "/Canarinho.txt", "");
+  appendFile(SD, "/Canarinho.txt", "      Tempo ");
+  appendFile(SD, "/Canarinho.txt", "      RPM ");
+  appendFile(SD, "/Canarinho.txt", "      WOW  ");
+  appendFile(SD, "/Canarinho.txt", "        VCAS  ");
+  appendFile(SD, "/Canarinho.txt", "      MagHead ");
+  appendFile(SD, "/Canarinho.txt", "      ELEV  ");
+  appendFile(SD, "/Canarinho.txt", "      AIL  ");
+  appendFile(SD, "/Canarinho.txt", "      RUD  ");
+  appendFile(SD, "/Canarinho.txt", "      HP  ");
+  appendFile(SD, "/Canarinho.txt", "            NZ  ");
+  appendFile(SD, "/Canarinho.txt", "      THETA ");
+  appendFile(SD, "/Canarinho.txt", "      PHI ");
+  appendFile(SD, "/Canarinho.txt", "          XGPS  ");
+  appendFile(SD, "/Canarinho.txt", "           YGPS  ");
+  appendFile(SD, "/Canarinho.txt", "        ZGPS  \r\n");
+  
+  appendFile(SD, "/Canarinho.txt", "    [segundos] ");
+  appendFile(SD, "/Canarinho.txt", "  [RPM] ");
+  appendFile(SD, "/Canarinho.txt", "    [bit] ");
+  appendFile(SD, "/Canarinho.txt", "        [m/s] ");
+  appendFile(SD, "/Canarinho.txt", "       [deg] ");
+  appendFile(SD, "/Canarinho.txt", "       [deg] ");
+  appendFile(SD, "/Canarinho.txt", "     [deg] ");
+  appendFile(SD, "/Canarinho.txt", "     [deg] ");
+  appendFile(SD, "/Canarinho.txt", "     [ft] ");
+  appendFile(SD, "/Canarinho.txt", "            [g] ");
+  appendFile(SD, "/Canarinho.txt", "      [deg] ");
+  appendFile(SD, "/Canarinho.txt", "     [deg] ");
+  appendFile(SD, "/Canarinho.txt", "         [m] ");
+  appendFile(SD, "/Canarinho.txt", "             [m] ");
+  appendFile(SD, "/Canarinho.txt", "          [m] \r\n");
+
+  display.clearDisplay();
+  display.setCursor(0,25);
+  display.println("GRAVANDO");
+  display.display();
   
   delayMicroseconds(1000000);
 }
@@ -274,43 +461,43 @@ void loop() {
   float altitudeResult;
   altitudeGPS = gps1.f_altitude();
   
-  Serial.print(RPM);
-  Serial.print("  ");
-  Serial.print(tempo);
-  Serial.print("  ");
-  Serial.print(WOW);
-  Serial.print("  ");
-  Serial.print(AcZ/16384.0);
-  Serial.print("  ");
-  Serial.print(pitch);
-  Serial.print("  ");
-  Serial.print(roll);
-  Serial.print("  ");
-  Serial.print(MagBow);
-  Serial.print("  ");
-  Serial.print(HP);
-  Serial.print("  ");
-  Serial.print(velocidademps);
-  Serial.print("  ");
-  Serial.print(valuePot_Prof);
-  Serial.print("  ");
-  Serial.print(valuePot_Aileron);
-  Serial.print("  ");
-  Serial.print(valuePot_Leme);
-  
+  appendFile(SD, "/Canarinho.txt", "     ");
+  appendFile(SD, "/Canarinho.txt", String(tempo).c_str());
+  appendFile(SD, "/Canarinho.txt", "    ");
+  appendFile(SD, "/Canarinho.txt", String(RPM).c_str());
+  appendFile(SD, "/Canarinho.txt", "        ");
+  appendFile(SD, "/Canarinho.txt", String(WOW).c_str());
+  appendFile(SD, "/Canarinho.txt","         ");
+  appendFile(SD, "/Canarinho.txt", String(velocidademps).c_str());
+  appendFile(SD, "/Canarinho.txt", "        ");
+  appendFile(SD, "/Canarinho.txt", String(MagBow).c_str());
+  appendFile(SD, "/Canarinho.txt", "         ");
+  appendFile(SD, "/Canarinho.txt", String(valuePot_Prof).c_str());
+  appendFile(SD, "/Canarinho.txt", "         ");
+  appendFile(SD, "/Canarinho.txt", String(valuePot_Aileron).c_str());
+  appendFile(SD, "/Canarinho.txt", "         ");
+  appendFile(SD, "/Canarinho.txt", String(valuePot_Leme).c_str());
+  appendFile(SD, "/Canarinho.txt", "         ");
+  appendFile(SD, "/Canarinho.txt", String(HP).c_str());
+  appendFile(SD, "/Canarinho.txt", "      ");
+  appendFile(SD, "/Canarinho.txt", String(AcZ/16384.0).c_str());
+  appendFile(SD, "/Canarinho.txt", "      ");
+  appendFile(SD, "/Canarinho.txt", String(pitch).c_str());
+  appendFile(SD, "/Canarinho.txt", "       ");
+  appendFile(SD, "/Canarinho.txt", String(roll).c_str());
   if (latitude != TinyGPS::GPS_INVALID_F_ANGLE) {
-    Serial.print("  ");
-    Serial.print(latitude,6);
+    appendFile(SD, "/Canarinho.txt", "        ");
+    appendFile(SD, "/Canarinho.txt", String(latitude,6).c_str());
   }
   if (longitude != TinyGPS::GPS_INVALID_F_ANGLE) {
-    Serial.print("  ");
-    Serial.print(longitude,6);
+    appendFile(SD, "/Canarinho.txt", "       ");
+    appendFile(SD, "/Canarinho.txt", String(longitude,6).c_str());
   }
   if ((altitudeGPS != TinyGPS::GPS_INVALID_ALTITUDE) && (altitudeGPS != 1000000)) {
-    Serial.print("  ");
-    Serial.print(altitudeGPS);
+    appendFile(SD, "/Canarinho.txt", "      ");
+    appendFile(SD, "/Canarinho.txt", String(altitudeGPS).c_str());
   }
-  Serial.println("  ");
+  appendFile(SD, "/Canarinho.txt", "\r\n");
   
   delayMicroseconds(1000000);
 }
