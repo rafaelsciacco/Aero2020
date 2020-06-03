@@ -1,4 +1,4 @@
-int RPM, latitude, longitude, altitudeGPS, elev, ail ,rud = 1;
+int RPM, elev, ail ,rud = 1;
 float WOW = 6;
 float velocidademps = 7;
 
@@ -13,6 +13,7 @@ float velocidademps = 7;
 #include <Adafruit_HMC5883_U.h> //MAG
 #include <MapFloat.h> //MAG
 #include <Adafruit_BMP085.h> //BMP
+#include <TinyGPS.h> //GPS
 
 //Variaveis RTC
 float tempo  = 0;
@@ -34,6 +35,11 @@ float MagBow = 0;
 //Variaveis BMP
 Adafruit_BMP085 bmp;
 float HP = 0;
+
+//Variaveis GPS
+#define RXD2 16
+#define TXD2 17
+TinyGPS gps1;
 
 //NRF
 unsigned long currentMillis;
@@ -157,7 +163,8 @@ void printDirectory(File dir, int numTabs) {
 void setup()
 {
   Serial.begin(115200);
-
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);
+    
   //Setup NRF
   radio.begin();
   radio.setDataRate( RF24_250KBPS );
@@ -174,7 +181,7 @@ void setup()
     Serial.println("RTC nao detectado");
     while (1);
   }
-  //rtc.adjust(DateTime(2020, 6, 3, 13, 46, 0));  // (Ano,mês,dia,hora,minuto,segundo)
+  //rtc.adjust(DateTime(2020, 6, 3, 19, 10, 0));  // (Ano,mês,dia,hora,minuto,segundo)
 
   //Setup MPU
   Wire.begin();
@@ -298,6 +305,27 @@ void loop(){
   //https://climatologiageografica.com/pressao-barometrica-ao-nivel-mar-em-tempo-real/
   //Exemplo: 1015 milibars = 101500 Pascal. O parâmetro de readAltitude deve ser 101500.
   HP = bmp.readAltitude(101800);
+
+  //GPS
+  bool recebido = false;
+  while (Serial2.available()) {
+    char cIn = Serial2.read();
+    recebido = (gps1.encode(cIn) || recebido);
+  }
+  float latitude, longitude, xgps, ygps;
+  unsigned long idadeInfo;
+  gps1.f_get_position(&latitude, &longitude, &idadeInfo);
+  float altitudeGPS, zgps;
+  altitudeGPS = gps1.f_altitude();
+  if (latitude != TinyGPS::GPS_INVALID_F_ANGLE) {
+    xgps = (latitude);
+  }
+  if (longitude != TinyGPS::GPS_INVALID_F_ANGLE) {
+    ygps = (longitude);
+  }
+  if ((altitudeGPS != TinyGPS::GPS_INVALID_ALTITUDE) && (altitudeGPS != 1000000)) {
+    zgps = altitudeGPS;
+  }
   
   //Escrever no arquivo test.txt o valor de cada parâmetro
   writeFile("test.txt", "     ");
@@ -324,18 +352,12 @@ void loop(){
   writeFile("test.txt", String(pitch).c_str());
   writeFile("test.txt", "       ");
   writeFile("test.txt", String(roll).c_str());
-  /*if (latitude != TinyGPS::GPS_INVALID_F_ANGLE) {
-    writeFile("test.txt", "        ");
-    writeFile("test.txt", String(latitude,6).c_str());
-  }
-  if (longitude != TinyGPS::GPS_INVALID_F_ANGLE) {
-    writeFile("test.txt", "       ");
-    writeFile("test.txt", String(longitude,6).c_str());
-  }
-  if ((altitudeGPS != TinyGPS::GPS_INVALID_ALTITUDE) && (altitudeGPS != 1000000)) {
-    writeFile("test.txt", "      ");
-    writeFile("test.txt", String(altitudeGPS).c_str());
-  }*/
+  writeFile("test.txt", "        ");
+  writeFile("test.txt", String(xgps,6).c_str());
+  writeFile("test.txt", "       ");
+  writeFile("test.txt", String(ygps,6).c_str());
+  writeFile("test.txt", "      ");
+  writeFile("test.txt", String(zgps).c_str());
   writeFile("test.txt", "\r\n");
   readFile("test.txt"); 
   delayMicroseconds(1000000);
