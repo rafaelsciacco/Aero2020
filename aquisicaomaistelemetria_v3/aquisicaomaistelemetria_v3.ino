@@ -1,5 +1,4 @@
 int RPM, latitude, longitude, altitudeGPS, elev, ail ,rud = 1;
-float MagBow = 4;
 float HP = 5;
 float WOW = 6;
 float velocidademps = 7;
@@ -10,7 +9,10 @@ float velocidademps = 7;
 #include <nRF24L01.h> //NRF
 #include <RF24.h> //NRF
 #include <RTClib.h> //RTC
-#include <Wire.h> //MPU
+#include <Wire.h> //MPU e MAG
+#include <Adafruit_Sensor.h> //MAG
+#include <Adafruit_HMC5883_U.h> //MAG
+#include <MapFloat.h> //MAG
 
 //Variaveis tempo
 float tempo  = 0;
@@ -24,6 +26,10 @@ int maxVal=402;
 float x, y, z;
 float nz;
 float pitch, roll, pitchprefiltro, rollprefiltro, pitchF, rollF;
+
+//Variaveis mag
+Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
+float MagBow = 0;
 
 //NRF
 unsigned long currentMillis;
@@ -172,7 +178,13 @@ void setup()
   Wire.write(0x6B);
   Wire.write(0);
   Wire.endTransmission(true);
-  
+
+  //Setup MAG
+  if(!mag.begin())
+  {
+    Serial.println("HMC5883 nao detectado");
+    while(1);
+  }
   //Escrever no arquivo test.txt os parâmetros e as unidades de medida  
   writeFile("test.txt", "      Tempo ");
   writeFile("test.txt", "      RPM ");
@@ -246,6 +258,29 @@ void loop(){
   // Low-pass filter
   rollF = 0.94 * rollF + 0.06 * rollprefiltro;
   pitchF = 0.94 * pitchF + 0.06 * pitchprefiltro;
+
+  //MagBow
+  sensors_event_t event;
+  mag.getEvent(&event);
+  //eixo Z para cima
+  float heading = atan2(event.magnetic.y, event.magnetic.x);
+  //http://www.magnetic-declination.com/
+  //Exemplo: -13* 2' W, ~13 graus = 0.22 radianos
+  //Se não houver declinationAngle, comentar as duas linhas seguintes
+  float declinationAngle = 0.37;
+  heading += declinationAngle;
+  if(heading < 0)
+    heading += 2*PI;
+  if(heading > 2*PI)
+    heading -= 2*PI;
+  float headingDegrees = heading * 180/M_PI;
+  MagBow = headingDegrees;
+  /*if(headingDegrees <= 264.00){
+    MagBow = mapFloat(headingDegrees,264.00, 0.00,0.00, 264.00);
+  }
+  if(headingDegrees > 264.00){
+    MagBow = mapFloat(headingDegrees,360.00 , 263.99, 264.01, 360.00);
+  }*/
   
   //Escrever no arquivo test.txt o valor de cada parâmetro
   writeFile("test.txt", "     ");
