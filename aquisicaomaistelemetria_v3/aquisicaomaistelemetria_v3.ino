@@ -1,4 +1,4 @@
-int RPM, elev, ail ,rud = 1;
+int elev, ail ,rud = 1;
 float WOW = 6;
 float velocidademps = 7;
 
@@ -41,6 +41,21 @@ float HP = 0;
 #define TXD2 17
 TinyGPS gps1;
 
+//Variaveis RPM
+#define pinINT   27
+volatile int conta_RPM = 0;
+int copyconta_RPM = 0;
+float RPM = 0;
+float contaAtualMillis = 0;
+float antigoMillis = 0;
+float subMillis = 0;
+float minutos = 0;
+
+//Funcao interrupcao
+void IRAM_ATTR ContaInterrupt() {
+  conta_RPM = conta_RPM + 1; //incrementa o contador de interrupções
+}
+
 //NRF
 unsigned long currentMillis;
 unsigned long prevMillis;
@@ -78,7 +93,7 @@ File root;
 void setupSD(){
   Serial.print("Initializing SD card...");
   /* initialize SD library with Soft SPI pins, if using Hard SPI replace with this SD.begin()*/
-  if (!SD.begin(26, 14, 13, 27)) {
+  if (!SD.begin(26, 14, 13, 25)) {
     Serial.println("initialization failed!");
     return;
   }
@@ -202,6 +217,10 @@ void setup()
   Serial.println("Could not find a valid BMP sensor, check wiring!");
   while (1) {}
   }
+
+  //Setup RPM
+  pinMode(pinINT,INPUT_PULLUP);
+  attachInterrupt(pinINT,ContaInterrupt, RISING);
   
   //Escrever no arquivo test.txt os parâmetros e as unidades de medida  
   writeFile("test.txt", "      Tempo ");
@@ -326,6 +345,15 @@ void loop(){
   if ((altitudeGPS != TinyGPS::GPS_INVALID_ALTITUDE) && (altitudeGPS != 1000000)) {
     zgps = altitudeGPS;
   }
+
+  //RPM
+  copyconta_RPM = conta_RPM;
+  contaAtualMillis = millis(); 
+  subMillis = contaAtualMillis - antigoMillis;
+  minutos = (subMillis/(60000));
+  RPM = copyconta_RPM/(4*minutos);
+  antigoMillis = contaAtualMillis;
+  conta_RPM = 0;
   
   //Escrever no arquivo test.txt o valor de cada parâmetro
   writeFile("test.txt", "     ");
