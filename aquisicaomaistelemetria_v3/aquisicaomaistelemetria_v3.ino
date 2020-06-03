@@ -1,7 +1,4 @@
-int RPM, pitch, roll, latitude, longitude, altitudeGPS, elev, ail ,rud = 1;
-float rollF = 1;
-float pitchF = 2;
-float nz = 3;
+int RPM, latitude, longitude, altitudeGPS, elev, ail ,rud = 1;
 float MagBow = 4;
 float HP = 5;
 float WOW = 6;
@@ -13,6 +10,20 @@ float velocidademps = 7;
 #include <nRF24L01.h> //NRF
 #include <RF24.h> //NRF
 #include <RTClib.h> //RTC
+#include <Wire.h> //MPU
+
+//Variaveis tempo
+float tempo  = 0;
+RTC_DS1307 rtc;
+
+//Variaveis mpu
+const int MPU_addr=0x69;
+int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
+int minVal=265;
+int maxVal=402;
+float x, y, z;
+float nz;
+float pitch, roll, pitchprefiltro, rollprefiltro, pitchF, rollF;
 
 //NRF
 unsigned long currentMillis;
@@ -45,7 +56,7 @@ void send() {
   
 }
 
-//microSD
+//Funções microSD
 File root;
 
 void setupSD(){
@@ -133,12 +144,6 @@ void printDirectory(File dir, int numTabs) {
    }
 }
 
-//Variaveis tempo
-float tempo  = 0;
-RTC_DS1307 rtc;
-
-
-
 void setup()
 {
   Serial.begin(115200);
@@ -161,6 +166,13 @@ void setup()
   }
   //rtc.adjust(DateTime(2020, 6, 3, 13, 46, 0));  // (Ano,mês,dia,hora,minuto,segundo)
 
+  //Setup MPU
+  Wire.begin();
+  Wire.beginTransmission(MPU_addr);
+  Wire.write(0x6B);
+  Wire.write(0);
+  Wire.endTransmission(true);
+  
   //Escrever no arquivo test.txt os parâmetros e as unidades de medida  
   writeFile("test.txt", "      Tempo ");
   writeFile("test.txt", "      RPM ");
@@ -207,6 +219,33 @@ void loop(){
   //Horario em segundos
   DateTime now = rtc.now();
   tempo = ((now.hour()*3600)+(now.minute()*60)+(now.second()));
+
+  //Pitch, Roll e Nz
+  Wire.beginTransmission(MPU_addr);
+  Wire.write(0x3B);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU_addr,14,true); 
+  AcX=Wire.read()<<8|Wire.read();
+  AcY=Wire.read()<<8|Wire.read();
+  AcZ=Wire.read()<<8|Wire.read();
+  int xAng = map(AcX,minVal,maxVal,-90,90);
+  int yAng = map(AcY,minVal,maxVal,-90,90);
+  int zAng = map(AcZ,minVal,maxVal,-90,90);
+
+  x= RAD_TO_DEG * (atan2(-yAng, -zAng)+PI);
+  y= RAD_TO_DEG * (atan2(-xAng, -zAng)+PI);
+  z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);
+  pitchprefiltro = x;
+  rollprefiltro = y;
+  nz = (AcZ/16384.0);
+  if(pitchprefiltro > 180) pitchprefiltro -= 360;
+  if(rollprefiltro > 180) rollprefiltro -= 360;
+  if(abs(pitchprefiltro) < 35) pitch = pitchprefiltro;
+  if(abs(rollprefiltro) < 30) roll = rollprefiltro;
+
+  // Low-pass filter
+  rollF = 0.94 * rollF + 0.06 * rollprefiltro;
+  pitchF = 0.94 * pitchF + 0.06 * pitchprefiltro;
   
   //Escrever no arquivo test.txt o valor de cada parâmetro
   writeFile("test.txt", "     ");
