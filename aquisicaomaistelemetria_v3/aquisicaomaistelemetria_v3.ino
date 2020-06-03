@@ -1,5 +1,4 @@
 int RPM, latitude, longitude, altitudeGPS, elev, ail ,rud = 1;
-float HP = 5;
 float WOW = 6;
 float velocidademps = 7;
 
@@ -9,16 +8,17 @@ float velocidademps = 7;
 #include <nRF24L01.h> //NRF
 #include <RF24.h> //NRF
 #include <RTClib.h> //RTC
-#include <Wire.h> //MPU e MAG
+#include <Wire.h> //MPU MAG E BMP
 #include <Adafruit_Sensor.h> //MAG
 #include <Adafruit_HMC5883_U.h> //MAG
 #include <MapFloat.h> //MAG
+#include <Adafruit_BMP085.h> //BMP
 
-//Variaveis tempo
+//Variaveis RTC
 float tempo  = 0;
 RTC_DS1307 rtc;
 
-//Variaveis mpu
+//Variaveis MPU
 const int MPU_addr=0x69;
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
 int minVal=265;
@@ -27,9 +27,13 @@ float x, y, z;
 float nz;
 float pitch, roll, pitchprefiltro, rollprefiltro, pitchF, rollF;
 
-//Variaveis mag
+//Variaveis MAG
 Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
 float MagBow = 0;
+
+//Variaveis BMP
+Adafruit_BMP085 bmp;
+float HP = 0;
 
 //NRF
 unsigned long currentMillis;
@@ -185,6 +189,13 @@ void setup()
     Serial.println("HMC5883 nao detectado");
     while(1);
   }
+
+  //Setup BMP
+  if (!bmp.begin()) {
+  Serial.println("Could not find a valid BMP sensor, check wiring!");
+  while (1) {}
+  }
+  
   //Escrever no arquivo test.txt os parâmetros e as unidades de medida  
   writeFile("test.txt", "      Tempo ");
   writeFile("test.txt", "      RPM ");
@@ -281,6 +292,12 @@ void loop(){
   if(headingDegrees > 264.00){
     MagBow = mapFloat(headingDegrees,360.00 , 263.99, 264.01, 360.00);
   }*/
+
+  //HP
+  //Altitude mais precisa com a pressão a nível do mar atual:
+  //https://climatologiageografica.com/pressao-barometrica-ao-nivel-mar-em-tempo-real/
+  //Exemplo: 1015 milibars = 101500 Pascal. O parâmetro de readAltitude deve ser 101500.
+  HP = bmp.readAltitude(101800);
   
   //Escrever no arquivo test.txt o valor de cada parâmetro
   writeFile("test.txt", "     ");
