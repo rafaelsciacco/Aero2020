@@ -1,4 +1,4 @@
-int tempo, RPM, pitch, roll, latitude, longitude, altitudeGPS, elev, ail ,rud = 1;
+int RPM, pitch, roll, latitude, longitude, altitudeGPS, elev, ail ,rud = 1;
 float rollF = 1;
 float pitchF = 2;
 float nz = 3;
@@ -6,12 +6,15 @@ float MagBow = 4;
 float HP = 5;
 float WOW = 6;
 float velocidademps = 7;
-#include <mySD.h> //SD
-#include <SPI.h> //SD e nrf
-#include <nRF24L01.h> //nrf
-#include <RF24.h> //nrf
 
-//nrf
+//Bibliotecas
+#include <mySD.h> //SD
+#include <SPI.h> //SD e NRF
+#include <nRF24L01.h> //NRF
+#include <RF24.h> //NRF
+#include <RTClib.h> //RTC
+
+//NRF
 unsigned long currentMillis;
 unsigned long prevMillis;
 unsigned long txIntervalMillis = 10;
@@ -130,19 +133,35 @@ void printDirectory(File dir, int numTabs) {
    }
 }
 
+//Variaveis tempo
+float tempo  = 0;
+RTC_DS1307 rtc;
+
+
+
 void setup()
 {
   Serial.begin(115200);
 
+  //Setup NRF
   radio.begin();
   radio.setDataRate( RF24_250KBPS );
   radio.setRetries(3,5); // delay, count
   radio.openWritingPipe(slaveAddress);
-  
+
+  //Setup SD
   setupSD();
   removeFile("test.txt"); 
   Serial.println("Arquivo test.txt já existente removido!");
-  
+
+  //Setup RTC
+  if (! rtc.begin()) {
+    Serial.println("RTC nao detectado");
+    while (1);
+  }
+  //rtc.adjust(DateTime(2020, 6, 3, 13, 46, 0));  // (Ano,mês,dia,hora,minuto,segundo)
+
+  //Escrever no arquivo test.txt os parâmetros e as unidades de medida  
   writeFile("test.txt", "      Tempo ");
   writeFile("test.txt", "      RPM ");
   writeFile("test.txt", "      WOW  ");
@@ -178,12 +197,18 @@ void setup()
 }
 
 void loop(){
+  //Enviar informação pelo NRF a cada txIntervalMillis 
   currentMillis = millis();
   if (currentMillis - prevMillis >= txIntervalMillis) {
       send();
       prevMillis = millis();
   }
+
+  //Horario em segundos
+  DateTime now = rtc.now();
+  tempo = ((now.hour()*3600)+(now.minute()*60)+(now.second()));
   
+  //Escrever no arquivo test.txt o valor de cada parâmetro
   writeFile("test.txt", "     ");
   writeFile("test.txt", String(tempo).c_str());
   writeFile("test.txt", "    ");
