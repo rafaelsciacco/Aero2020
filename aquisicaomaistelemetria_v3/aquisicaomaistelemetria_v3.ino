@@ -1,3 +1,5 @@
+//FUNCIONAIS 20:47 03/06/2020: NRF + SD + RTC + MPU + MAG + BMP + GPS + HALL
+//FALTAM: WOW, VCAS, ELEV, AIL, RUD, AOA, AOS
 int elev, ail ,rud = 1;
 float WOW = 6;
 float velocidademps = 7;
@@ -59,7 +61,7 @@ void IRAM_ATTR ContaInterrupt() {
 //NRF
 unsigned long currentMillis;
 unsigned long prevMillis;
-unsigned long txIntervalMillis = 10;
+unsigned long txIntervalMillis = 1;
 #define CE_PIN   33
 #define CSN_PIN 32
 const byte slaveAddress[5] = {'R','x','A','A','A'};
@@ -356,37 +358,7 @@ void loop(){
   conta_RPM = 0;
   
   //Escrever no arquivo test.txt o valor de cada parâmetro
-  writeFile("test.txt", "     ");
-  writeFile("test.txt", String(tempo).c_str());
-  writeFile("test.txt", "    ");
-  writeFile("test.txt", String(RPM).c_str());
-  writeFile("test.txt", "        ");
-  writeFile("test.txt", String(WOW).c_str());
-  writeFile("test.txt","         ");
-  writeFile("test.txt", String(velocidademps).c_str());
-  writeFile("test.txt", "        ");
-  writeFile("test.txt", String(MagBow).c_str());
-  writeFile("test.txt", "         ");
-  writeFile("test.txt", String(elev).c_str());
-  writeFile("test.txt", "         ");
-  writeFile("test.txt", String(ail).c_str());
-  writeFile("test.txt", "         ");
-  writeFile("test.txt", String(rud).c_str());
-  writeFile("test.txt", "         ");
-  writeFile("test.txt", String(HP).c_str());
-  writeFile("test.txt", "      ");
-  writeFile("test.txt", String(nz).c_str());
-  writeFile("test.txt", "      ");
-  writeFile("test.txt", String(pitch).c_str());
-  writeFile("test.txt", "       ");
-  writeFile("test.txt", String(roll).c_str());
-  writeFile("test.txt", "        ");
-  writeFile("test.txt", String(xgps,6).c_str());
-  writeFile("test.txt", "       ");
-  writeFile("test.txt", String(ygps,6).c_str());
-  writeFile("test.txt", "      ");
-  writeFile("test.txt", String(zgps).c_str());
-  writeFile("test.txt", "\r\n");
-  readFile("test.txt"); 
-  delayMicroseconds(1000000);
+  writeFile("test.txt",("   "+String(tempo)+"   "+String(RPM)+"   "+String(WOW)+"   "+String(velocidademps)+"   "+String(MagBow)+"   "+String(elev)+"   "+String(ail)+"   "+String(rud)+"   "+String(HP)+"   "+String(nz)+"   "+String(pitch)+"   "+String(roll)+"   "+String(xgps,6)+"   "+String(ygps,6)+"   "+String(zgps)+"\r\n").c_str());
+  //readFile("test.txt");
+  //delayMicroseconds(1);
 }
