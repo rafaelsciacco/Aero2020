@@ -1,6 +1,6 @@
 //FUNCIONAIS 20:47 03/06/2020: NRF + SD + RTC + MPU + MAG + BMP + GPS + HALL
 //FALTAM: WOW, VCAS, ELEV, AIL, RUD, AOA, AOS
-int elev, ail ,rud = 1;
+int elev, ail ,rud;
 float WOW = 6;
 float velocidademps = 7;
 
@@ -80,11 +80,11 @@ void send() {
   }
   //Serial.print(dataToSend);
   if (rslt) {
-      Serial.println("  Acknowledge received");
+      Serial.println("  Informação recebida");
       //updateMessage();
   }
   else {
-      Serial.println("  Tx failed");
+      Serial.println("  Tx falhou");
   }
   
 }
@@ -93,20 +93,19 @@ void send() {
 File root;
 
 void setupSD(){
-  Serial.print("Initializing SD card...");
-  /* initialize SD library with Soft SPI pins, if using Hard SPI replace with this SD.begin()*/
-  if (!SD.begin(26, 14, 13, 25)) {
-    Serial.println("initialization failed!");
+  Serial.print("Iniciando cartão SD...");
+  // Inicia a biblioteca mySD com os pinos desejados
+  if (!SD.begin(26, 14, 13, 25)) { //(CS,MOSI,MISO,SCK)
+    Serial.println("inicialização falhou!");
     return;
   }
-  Serial.println("initialization done.");
-  /* Begin at the root "/" */
+  Serial.println("inicizaliação concluída.");
   root = SD.open("/");
   if (root) {    
     printDirectory(root, 0);
     root.close();
   } else {
-    Serial.println("error opening test.txt");
+    Serial.println("erro ao abrir arquivo");
   }
 }
 
@@ -116,60 +115,50 @@ void removeFile(char * path){
     SD.remove(path);
     root.close();
   } else {
-    Serial.println("error removing file");
+    Serial.println("erro ao remover arquivo");
   }
 }
 
 void writeFile(const char * path,const char * message){
-  /* open "test.txt" for writing */
-  root = SD.open(path, FILE_WRITE);
-  /* if open succesfully -> root != NULL 
-    then write string "Hello world!" to it
-  */
+  // Abrir arquivo de interesse para escrever
+  root = SD.open(path, FILE_WRITE);    
   if (root) {
     root.print(message);
     root.flush();
-   /* close the file */
     root.close();
   } else {
-    /* if the file open error, print an error */
-    Serial.println("error opening test.txt");
+    Serial.println("erro ao abrir arquivo para escrever");
   }
 }
 
 void readFile(char *path){
-  /* after writing then reopen the file and read it */
   root = SD.open(path);
   if (root) {    
-    /* read from the file until there's nothing else in it */
+    //Ler arquivo até o final.
     while (root.available()) {
-      /* read the file and print to Terminal */
       Serial.write(root.read());
     }
     root.close();
   } else {
-    Serial.println("error reading file");
+    Serial.println("erro ao ler arquivo");
   }
 }
 
-void printDirectory(File dir, int numTabs) {
-  
+void printDirectory(File dir, int numTabs) { 
+  //Exibir conteúdo do cartão SD.
   while(true) {
      File entry =  dir.openNextFile();
      if (! entry) {
        break;
      }
      for (uint8_t i=0; i<numTabs; i++) {
-       Serial.print('\t');   // we'll have a nice indentation
+       Serial.print('\t');
      }
-     // Print the name
      Serial.print(entry.name());
-     /* Recurse for directories, otherwise print the file size */
      if (entry.isDirectory()) {
        Serial.println("/");
        printDirectory(entry, numTabs+1);
      } else {
-       /* files have sizes, directories do not */
        Serial.print("\t\t");
        Serial.println(entry.size());
      }
@@ -216,7 +205,7 @@ void setup()
 
   //Setup BMP
   if (!bmp.begin()) {
-  Serial.println("Could not find a valid BMP sensor, check wiring!");
+  Serial.println("BMP nao detectado");
   while (1) {}
   }
 
@@ -224,38 +213,8 @@ void setup()
   pinMode(pinINT,INPUT_PULLUP);
   attachInterrupt(pinINT,ContaInterrupt, RISING);
   
-  //Escrever no arquivo test.txt os parâmetros e as unidades de medida  
-  writeFile("test.txt", "      Tempo ");
-  writeFile("test.txt", "      RPM ");
-  writeFile("test.txt", "      WOW  ");
-  writeFile("test.txt", "        VCAS  ");
-  writeFile("test.txt", "      MagHead ");
-  writeFile("test.txt", "      ELEV  ");
-  writeFile("test.txt", "      AIL  ");
-  writeFile("test.txt", "      RUD  ");
-  writeFile("test.txt", "      HP  ");
-  writeFile("test.txt", "            NZ  ");
-  writeFile("test.txt", "      THETA ");
-  writeFile("test.txt", "      PHI ");
-  writeFile("test.txt", "          XGPS  ");
-  writeFile("test.txt", "           YGPS  ");
-  writeFile("test.txt", "        ZGPS  \r\n");
-  
-  writeFile("test.txt", "    [segundos] ");
-  writeFile("test.txt", "  [RPM] ");
-  writeFile("test.txt", "    [bit] ");
-  writeFile("test.txt", "        [m/s] ");
-  writeFile("test.txt", "       [deg] ");
-  writeFile("test.txt", "       [deg] ");
-  writeFile("test.txt", "     [deg] ");
-  writeFile("test.txt", "     [deg] ");
-  writeFile("test.txt", "     [ft] ");
-  writeFile("test.txt", "            [g] ");
-  writeFile("test.txt", "      [deg] ");
-  writeFile("test.txt", "     [deg] ");
-  writeFile("test.txt", "         [m] ");
-  writeFile("test.txt", "             [m] ");
-  writeFile("test.txt", "          [m] \r\n");
+  //Escrever no arquivo test.txt os parâmetros e as unidades de medida
+  writeFile("test.txt", "   Tempo   RPM   WOW   VCAS    MagHead   ELEV    AIL   RUD   HP    NZ    THETA   PHI   XGPS    YGPS    ZGPS \r\n   [segundos]    [RPM]   [bit]   [m/s]   [deg]   [deg]   [deg]   [deg]   [ft]    [g]   [deg]   [deg]   [m]   [m]   [m] \r\n");
 
 }
 
@@ -294,7 +253,7 @@ void loop(){
   if(abs(pitchprefiltro) < 35) pitch = pitchprefiltro;
   if(abs(rollprefiltro) < 30) roll = rollprefiltro;
 
-  // Low-pass filter
+  //Filtro passa baixas
   rollF = 0.94 * rollF + 0.06 * rollprefiltro;
   pitchF = 0.94 * pitchF + 0.06 * pitchprefiltro;
 
@@ -325,7 +284,7 @@ void loop(){
   //Altitude mais precisa com a pressão a nível do mar atual:
   //https://climatologiageografica.com/pressao-barometrica-ao-nivel-mar-em-tempo-real/
   //Exemplo: 1015 milibars = 101500 Pascal. O parâmetro de readAltitude deve ser 101500.
-  HP = bmp.readAltitude(101800);
+  HP = bmp.readAltitude(101800)*3.28084; //*3.28084 = conversão de [m] para [ft].
 
   //GPS
   bool recebido = false;
